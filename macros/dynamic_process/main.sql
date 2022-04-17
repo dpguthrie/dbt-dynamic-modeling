@@ -1,29 +1,11 @@
 {% macro main(env=None, product='award') %}
 
-{# 
-
-The data within rows returned from the `get_current_form_elements` macro can be accessed with the following:
-
-    row[0] = tenant_id,
-    row[1] = sqlized_tenant_id,
-    row[2] = data_type,
-    row[3] = cayuse_type,
-    row[4] = comment,
-    row[5] = id,
-    row[6] = sqlized_id,
-    row[7] = multiple_values,
-    row[8] = max_timestamp
-    row[9] = tenant_schema
-    row[10] = has_column
-
-#}
-
 {% if execute %}
 
     {% set env = env or target.database %}
 
     -- Get current form elements from raw data
-    {% set all_form_elements = get_current_form_elements(env) %}
+    {% set all_form_elements = get_current_form_elements(env, product) %}
 
     -- Distinct tenants in dataset
     {% set distinct_sqlized_tenant_ids = all_form_elements.columns[1].values_distinct() %}
