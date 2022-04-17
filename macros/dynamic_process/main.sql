@@ -36,7 +36,8 @@
 
         -- If column not found in information_schema, then add
         {% if not row[10] -%}
-            {{ inter_fact_add_column(env, row) }}
+            {% set data_type = get_data_type(row) %}
+            {{ add_column(env, row[9], 'INTER_FACT_AWARD', row[6], data_type, row[4]) }}
         {% endif -%}
         {% if row[1] not in tenant_dict.keys() -%}
             {% set _ = tenant_dict.update({row[1]: dict()}) -%}
@@ -44,7 +45,7 @@
         {% endif -%}
         {% set _ = tenant_dict[row[1]].update({row[6]: row}) -%}
 
-        -- If cayuse_type or multiple_values or in standard_bridges, add to bridge rows
+        -- If cayuse_type or multiple_values or in standard_bridges, add to bridge dict
         {% if row[3] or row[7] or row[6] in var('standard_bridges') -%}
             {% set _ = bridge_dict[row[1]].update({row[6]: row}) -%}
         {% endif -%}

@@ -28,7 +28,7 @@
             select 
                 *,
                 'analytics_' || sqlized_tenant_id as tenant_schema
-            from parsed
+            from flattened
             qualify row_number() over (
                 partition by sqlized_tenant_id, sqlized_id
                 order by max_timestamp desc
