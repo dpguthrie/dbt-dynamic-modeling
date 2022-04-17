@@ -1,0 +1,7 @@
+version: 2
+
+sources:
+  - name: awards
+    tables:
+      - name: awards_json
+      - name: tenant_history

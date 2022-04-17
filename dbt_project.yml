@@ -24,6 +24,57 @@ clean-targets:         # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
 
+on-run-start:
+  - '{{ create_udfs() }}'
+
+vars:
+  data_types: {
+    'text': 'varchar',
+    'date': 'date',
+    'select': 'varchar',
+    'one': 'number',
+    'textarea': 'varchar',
+    'radio': 'varchar',
+    'subform': 'varchar',
+    'researchTeam': 'variant',
+    'boolean': 'boolean',
+    'cayuseResearchTeamBudgetImporter': 'varchar',
+    'number': 'number',
+    'upload': 'varchar',
+    'richText': 'varchar',
+    'cayuseHumanEthicsStudySearch': 'varchar',
+    'cayuse-hazard-safety': 'varchar',
+  }
+  common_columns: {
+    'award': {
+      'award_key': 'varchar',
+      'tenant_id': 'varchar',
+      'tenant_key': 'varchar',
+      'award_id': 'varchar',
+      'award_number': 'varchar',
+      'project_id': 'varchar',
+      'project_number': 'varchar',
+      'project_title': 'varchar',
+      'admin_team_members': 'variant',
+      'award_legacy_number': 'varchar',
+      'review_status': 'varchar',
+      'create_date': 'timestamp',
+      'update_date': 'timestamp',
+      'status_name': 'varchar',
+      'status_key': 'varchar',
+    }
+  }
+  standard_bridges: [
+    'instrument_type',
+    'income_type',
+    'Sponsor',
+    'Prime_sponsor',
+    'Admin_unit',
+    'research_team',
+    'terms_conditions',
+    'restrictions',
+    'reporting_requirements',  
+  ]
 
 # Configuring models
 # Full documentation: https://docs.getdbt.com/docs/configuring-models
@@ -34,5 +85,5 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   my_new_project:
     # Applies to all files under models/example/
-    example:
+    awards:
       materialized: view
