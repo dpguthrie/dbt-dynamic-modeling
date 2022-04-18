@@ -34,25 +34,29 @@
 
     {% endfor %}
 
-    {% set tenant_dict = dict() %}
-    {% set bridge_dict = dict() %}
-    {% set add_column_sql %}
-
-    -- We need to have valid SQL if we don't find any columns to add
-    SELECT 1;
+    {% set tenant_dict = dict() %} -- Will be used to ensure we have every column to select from
+    {% set bridge_dict = dict() %} -- Will be used to create bridge tables
+    {% set column_dict = dict() %} -- Will be used to create columns in inter_fact table
 
     {% for row in all_form_elements %}
 
-        -- If column not found in information_schema, then add
-        {% if not row[10] -%}
-            {% set data_type = get_data_type(row) %}
-            {{ add_column(env, row[9], 'INTER_FACT_AWARD', row[6], data_type, row[4]) }}
-            {% do log(row[6] ~ ' (' ~ data_type ~ ') column added in ' ~ row[9] ~ '.INTER_FACT_' ~ product | upper, info=True) %}
-        {% endif -%}
+        -- Ensure sqlized_tenant_id exists in dictionaries
         {% if row[1] not in tenant_dict.keys() -%}
             {% set _ = tenant_dict.update({row[1]: dict()}) -%}
             {% set _ = bridge_dict.update({row[1]: dict()}) -%}
         {% endif -%}
+
+        -- If column not found in information_schema, then add
+        {% if not row[10] -%}
+            {% if row[1] not in column_dict.keys() -%}
+                {% set _ = column_dict.update({row[1]: []}) -%}
+            {% endif %}
+            {% set sql %}
+            {{ row[6] }} {{ get_data_type(row) }} comment '{{ row[4] }}'
+            {% endset %}
+            {{ column_dict[row[1]].append(sql) }}
+        {% endif -%}
+
         {% set _ = tenant_dict[row[1]].update({row[6]: row}) -%}
 
         -- If cayuse_type or multiple_values or in standard_bridges, add to bridge dict
@@ -62,9 +66,17 @@
 
     {% endfor -%}
 
-    {% endset -%}
+    -- Add columns to INTER_FACT_{{ product }} table
+    {% for sqlized_tenant_id, column_list in column_dict.items() %}
+        {% set tenant_schema = 'ANALYTICS_' + sqlized_tenant_id | upper %}
+        {% set sql %}
+        ALTER TABLE {{ env }}.{{ tenant_schema }}.INTER_FACT_{{ product | upper }}
+        ADD {{ column_list | join(', ') }}
+        {% endset %}
 
-    {% do run_query(add_column_sql) -%}
+        {% do run_query(sql) %}
+        {% do log(column_list | length ~ ' columns added in ' ~ tenant_schema ~ '.INTER_FACT_' ~ product | upper, info=True) -%}
+    {% endfor %}
 
     -- Loop through each distinct tenant, merge data into inter_fact_award, create fact_award table, create bridge tables
     {% for sqlized_tenant_id in distinct_sqlized_tenant_ids %}
