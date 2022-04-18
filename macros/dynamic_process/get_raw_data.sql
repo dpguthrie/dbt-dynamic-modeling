@@ -1,5 +1,3 @@
-
-
 {% macro get_current_form_elements(env, product) %}
 
     {% set sql %}
@@ -29,6 +27,13 @@
                 *,
                 'analytics_' || sqlized_tenant_id as tenant_schema
             from flattened
+            /*
+            This will ensure that we pull in the most recently updated
+            column if, for instance, the name of the column (comment) has
+            changed.  However, if we have already created this column in
+            our inter_fact_<product> table, the current process would NOT
+            update that comment to the new column name.
+            */
             qualify row_number() over (
                 partition by sqlized_tenant_id, sqlized_id
                 order by max_timestamp desc
@@ -40,7 +45,7 @@
                 column_name,
                 table_schema
             from {{ env }}.information_schema.columns
-            where table_name = 'INTER_FACT_AWARD'
+            where table_name = 'INTER_FACT_{{ product | upper }}'
         )
 
         select
@@ -52,10 +57,8 @@
             and upper(fe.sqlized_id) = info.column_name
     {% endset %}
     
-    {% if execute %}
-        {% set results = run_query(sql) %}
-        {{ return(results) }}
-    {% endif %}
+    {% set results = run_query(sql) %}
+    {{ return(results) }}
 
 {% endmacro %}
 
@@ -72,65 +75,5 @@
     {% set schemas = run_query(sql).columns[0].values() %}
 
     {{ return(schemas) }}
-
-{% endmacro %}
-
-{% macro get_current_tenants(env, product) %}
-
-    {% set sql %}
-
-    with data as (
-        select parse_json(raw) as json
-        from {{ env }}.products.{{ product }}
-    )
-
-    select distinct
-        data.json:tenantId::string as tenant_id,
-        sqlize_tenant_id(data.json:tenantId::string) as sqlized_tenant_id,
-        upper('analytics_' || sqlized_tenant_id) as tenant_schema
-    from data
-
-    {% endset %}
-
-    {% if execute %}
-
-        {% set results = run_query(sql) %}
-        {{ return(results) }}
-
-    {% endif %}
-
-{% endmacro %}
-
-{% macro get_missing_columns_from_inter_fact(env, product, sqlized_tenant_id, tenant_schema) %}
-
-    {% set tenant_schema = 'analytics_' + sqlized_tenant_id | upper %}
-    {% set table_name = 'inter_fact_' + product | upper %}
-    {% set model_name = 'stg_' + product + 's__distinct_form_elements' %}
-
-    {% set sql %}
-    with info_schema as (
-        select
-            column_name,
-            data_type
-        from {{ env }}.information_schema.columns
-        where table_schema = {{ tenant_schema }}
-            and table_name = {{ table_name }}
-    ),
-
-    existing_columns as (
-        select *
-        from {{ ref(model_name) }}
-        where sqlized_tenant_id = {{ sqlized_tenant_id }}
-    )
-
-    select existing_columns.*
-    from existing_columns
-    left join info_schema on
-        existing_columns.sqlized_id = info_schema.column_name
-    where info_schema.column_name is null
-    {% endset %}
-
-    {% set results = run_query(sql) %}
-    {{ return(results) }}
 
 {% endmacro %}

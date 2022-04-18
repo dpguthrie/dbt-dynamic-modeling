@@ -9,7 +9,7 @@
     -- Get current form elements from raw data
     {% set all_form_elements = get_current_form_elements(env, product) %}
 
-    {% do log('All distinct form elements for ' ~ product ~ ' queried!', info=True) %}
+    {% do log(all_form_elements.rows | length ~ ' distinct form elements for ' ~ product ~ ' queried!', info=True) %}
 
     -- Distinct tenants in dataset
     {% set distinct_sqlized_tenant_ids = all_form_elements.columns[1].values_distinct() %}
