@@ -1,16 +1,3 @@
-{% macro create_history_table(env=None, schema=None) %}
-
-    {% set env = env or target.database %}
-    {% set schema = schema or target.schema %}
-
-    create table if not exists {{ env }}.{{ schema }}.tenant_history (
-        tenant_id varchar(200),
-        form_elements array,
-        last_updated_at timestamp
-    );
-
-{% endmacro %}
-
 {% macro create_tenant_schema(tenant_schema, env=None) %}
 
     {% set env = env or target.database %}
