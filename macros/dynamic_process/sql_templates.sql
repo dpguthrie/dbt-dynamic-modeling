@@ -36,10 +36,37 @@
     {% set sql %}
     merge into {{ env }}.{{ tenant_schema }}.inter_fact_{{ product }} as target
     using (
-        with tenant_data as (
-            select *
-            from {{ ref('stg_awards__awards_json') }}
-            -- Join table here containing the tenant_id and max_updated_at to limit records being merged
+        with raw_data as (
+            select parse_json(raw) as json
+            from {{ env }}.products.{{ product }}
+            qualify row_number() over (
+                partition by json:awardId
+                order by json:modificationNumber desc
+            ) = 1
+        ),
+
+        parsed as (
+            select
+                json:tenantId::string as tenant_id,
+                sha2(json:awardId::string) as award_key,
+                sha2(json:tenantId::string) as tenant_key,
+                json:awardId::string as award_id,
+                json:awardNumber::string as award_number,
+                json:projectId::string as project_id,
+                json:projectNumber::string as project_number,
+                json:projectTitle::string as project_title,
+                json:adminTeamMembers::variant as admin_team_members,
+                json:awardLegacyNumber::string as award_legacy_number,
+                json:reviewStatus::string as review_status,
+                json:createDate::timestamp_ntz as create_date,
+                json:updateDate::timestamp_ntz as update_date,
+                json:createdUser::string as create_user,
+                json:updatedUser::string as update_user,
+                json:statusName::string as status_name,
+                json:statusKey::string as status_key,
+                json:formElements as form_elements_json,
+                sqlize_tenant_id(json:tenantId::string) as sqlized_tenant_id
+            from raw_data
             where sqlized_tenant_id = '{{ sqlized_tenant_id }}'
         ),
 
@@ -48,10 +75,10 @@
                 td.*,
                 fe.value:answer as form_answer,
                 fe.value:id as form_id
-            from tenant_data td,
+            from parsed td,
                 lateral flatten(form_elements_json) fe
         )
-        -- {'sqlized_tenant_id': {'sqlized_id': ['id', 'snowflake_data_type'], 'sqlized_id': ['id', 'snowflake_data_type'], ...}}
+        
         select
             {% for col in common_columns %}
             {{ col }},
